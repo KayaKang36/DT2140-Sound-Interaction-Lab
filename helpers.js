@@ -27,21 +27,22 @@ function getParamMinMax(param) {
 //==========================================================================================
 
 function setMotionListeners() {
-  if (typeof DeviceMotionEvent.requestPermission === 'function') {
-    // alert('Motion sensors permission denied. Please enable in Settings > Safari > Motion & Orientation Access');
-
-    // iOS 13+ requires permission request from user gesture
-    DeviceMotionEvent.requestPermission()
+  // iOS 13+ requires permission request from user gesture.
+  // Motion (acceleration) and orientation (rotation) are two separate permissions.
+  [window.DeviceMotionEvent, window.DeviceOrientationEvent].forEach((Evt) => {
+    if (!Evt || typeof Evt.requestPermission !== 'function') return;
+    Evt.requestPermission()
       .then(permissionState => {
-        if (permissionState === 'granted') {
-          console.log("Permission granted to sensors");
+        console.log("Sensor permission:", permissionState);
+        if (permissionState !== 'granted') {
+          alert('Motion sensors permission denied. Please enable in Settings > Safari > Motion & Orientation Access');
         }
       })
       .catch((error) => {
+        // Called without a user gesture (e.g. from setup()): the button click will ask again.
         console.log("Error getting sensor permission: %O", error);
-        alert('Motion sensors permission denied.');
       });
-  }
+  });
 }
 
 //==========================================================================================

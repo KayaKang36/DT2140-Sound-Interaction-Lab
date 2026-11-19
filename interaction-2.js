@@ -48,7 +48,18 @@ bells.createDSP(audioContext, 1024)
 // Edit the next functions to create interactions
 // Decide which parameters you're using and then use playAudio to play the Audio
 //------------------------------------------------------------------------------------------
-//
+
+const STRIKE_COOLDOWN_MS = 250;   // 两次敲钟至少间隔 250 ms，避免一次摇晃连响很多下
+let lastStrike = -Infinity;
+let shakeStrength = 0;            // 当前加速度偏离重力的程度，m/s²
+
+// 记录摇晃有多猛，用来决定钟声的响度
+window.addEventListener("devicemotion", (e) => {
+    const a = e.accelerationIncludingGravity;
+    if (!a || a.x === null) return;
+    const magnitude = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+    shakeStrength = Math.abs(magnitude - 9.81);
+});
 //==========================================================================================
 
 function accelerationChange(accx, accy, accz) {
@@ -59,7 +70,7 @@ function rotationChange(rotx, roty, rotz) {
 }
 
 function mousePressed() {
-    // playAudio()
+    playAudio(0,7);
     // Use this for debugging from the desktop!
 }
 

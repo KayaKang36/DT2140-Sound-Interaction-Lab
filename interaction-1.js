@@ -49,36 +49,48 @@ tuono.createDSP(audioContext, 1024)
 // Decide which parameters you're using and then use playAudio to play the Audio
 //------------------------------------------------------------------------------------------
 
-// 自由下落检测：静止时加速度（含重力）的大小约 9.8 m/s²，自由下落时接近 0。
-// 下落 30 cm 大约需要 sqrt(2 * 0.3 / 9.81) ≈ 0.25 s，所以要求持续 200 ms 以上。
-const FREEFALL_THRESHOLD = 3.0;   // m/s²，低于它就认为在自由下落
-const FREEFALL_MIN_MS = 200;      // 至少持续这么久才算（过滤掉短暂抖动）
-const COOLDOWN_MS = 2000;         // 两次雷声之间至少间隔 2 秒
+// 自由下落检测（只用 p5 自带的 accelerationX/Y/Z）
+// p5 的加速度已经去掉了重力，并且乘了 2：
+//   - 手机静止 / 拿在手里：三轴都接近 0
+//   - 自由下落：传感器"感觉"到一个反向的 1g，模长约 9.8 × 2 ≈ 19.6
+// 所以：先静止一会儿（就绪），然后模长持续落在 19.6 附近 200 ms 以上，就算一次下落。
+const REST_MAX = 4;          // 模长低于它算静止
+const FALL_MIN = 12;         // 自由下落时模长的范围（约 19.6）
+const FALL_MAX = 30;
+const REST_MS = 300;         // 至少静止这么久才就绪
+const FALL_MS = 200;         // 至少持续下落这么久才打雷（过滤掉摇晃的瞬间峰值）
 
-let fallStart = null;   // 本次低加速度开始的时刻（millis），null = 当前没有在下落
-let lastThunder = -COOLDOWN_MS; // 上次播放雷声的时刻，初值保证第一次下落就能触发
+let restStart = null;        // 开始静止的时刻
+let fallStart = null;        // 开始下落的时刻
+let ready = false;           // 是否已就绪
 //==========================================================================================
 
-/*
-使用前先在手机上验证一件事：手机静止平放时，页面上的 Acceleration Z 是多少。
-约 9.8（或 19.6）：说明 p5 的数值含重力，这个版本能用。
-接近 0：说明 p5 给的是去掉重力的数值，自由下落和静止时差不多都是 0，分辨不出来。*/
-
-// p5 在 sketch.js 的 draw() 中每一帧调用这个函数，传入 accelerationX/Y/Z
 function accelerationChange(accx, accy, accz) {
-    if (!accx && !accy && !accz) return; // 电脑上没有传感器，数值全为 0，直接跳过
+    // 声音没打开时不检测（防止一打开页面就响）
+    if (audioContext.state !== "running") {
+        ready = false;
+        return;
+    }
 
-    const mag = Math.sqrt(accx * accx + accy * accy + accz * accz);
-    const now = millis();
+    let mag = sqrt(accx * accx + accy * accy + accz * accz);
 
-    if (mag < FREEFALL_THRESHOLD) {
-        if (fallStart === null) fallStart = now;
-        if (now - fallStart > FREEFALL_MIN_MS && now - lastThunder > COOLDOWN_MS) {
-            lastThunder = now;
-            console.log("Free fall detected, magnitude =", mag.toFixed(2));
+    if (mag < REST_MAX) {
+        // 静止：计时，够久就就绪
+        fallStart = null;
+        if (restStart === null) restStart = millis();
+        if (millis() - restStart > REST_MS) ready = true;
+    } else if (ready && mag > FALL_MIN && mag < FALL_MAX) {
+        // 可能在下落：持续够久就打雷
+        restStart = null;
+        if (fallStart === null) fallStart = millis();
+        if (millis() - fallStart > FALL_MS) {
             playAudio();
+            ready = false;   // 一次下落只响一次，接住/落地静止后重新就绪
+            fallStart = null;
         }
     } else {
+        // 其它情况（摇晃、撞击）：都不算
+        restStart = null;
         fallStart = null;
     }
 }
@@ -86,8 +98,11 @@ function rotationChange(rotx, roty, rotz) {
 }
 
 function mousePressed() {
-    playAudio()
     // Use this for debugging from the desktop!
+    // 只在电脑上（没有传感器，数值全为 0）用点击测试；手机上点屏幕不触发
+    if (accelerationX === 0 && accelerationY === 0 && accelerationZ === 0) {
+        playAudio();
+    }
 }
 
 function deviceMoved() {
@@ -101,7 +116,7 @@ function deviceTurned() {
 function deviceShaken() {
     shaketimer = millis();
     statusLabels[0].style("color", "pink");
-    playAudio();
+    // 不在这里 playAudio()：本交互只在自由下落时打雷，摇晃/拿起手机不应触发
 }
 
 function getMinMaxParam(address) {
