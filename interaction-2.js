@@ -49,7 +49,7 @@ bells.createDSP(audioContext, 1024)
 // Decide which parameters you're using and then use playAudio to play the Audio
 //------------------------------------------------------------------------------------------
 
-const STRIKE_COOLDOWN_MS = 250;   // 两次敲钟至少间隔 250 ms，避免一次摇晃连响很多下
+const STRIKE_COOLDOWN_MS = 50   // 两次敲钟至少间隔 250 ms，避免一次摇晃连响很多下
 let lastStrike = -Infinity;
 //==========================================================================================
 
