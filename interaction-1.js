@@ -54,51 +54,34 @@ tuono.createDSP(audioContext, 1024)
 const FREEFALL_THRESHOLD = 3.0;   // m/s²，低于它就认为在自由下落
 const FREEFALL_MIN_MS = 200;      // 至少持续这么久才算（过滤掉短暂抖动）
 const COOLDOWN_MS = 2000;         // 两次雷声之间至少间隔 2 秒
+
+let fallStart = null;   // 本次低加速度开始的时刻（millis），null = 当前没有在下落
+let lastThunder = -COOLDOWN_MS; // 上次播放雷声的时刻，初值保证第一次下落就能触发
 //==========================================================================================
-
-// 直接监听浏览器的 devicemotion 事件，单位明确（m/s²，含重力）
-window.addEventListener("devicemotion", (e) => {
-    const a = e.accelerationIncludingGravity;
-    if (!a || a.x === null) return;
-    const magnitude = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-    const now = performance.now();
-
-    if (magnitude < FREEFALL_THRESHOLD) {
-        if (fallStart === null) fallStart = now;
-        if (now - fallStart > FREEFALL_MIN_MS && now - lastThunder > COOLDOWN_MS) {
-            lastThunder = now;
-            console.log("Free fall detected, magnitude =", magnitude.toFixed(2));
-            playAudio();
-        }
-    } else {
-        fallStart = null;
-    }
-});
-
 
 /*
 使用前先在手机上验证一件事：手机静止平放时，页面上的 Acceleration Z 是多少。
-约 9.8（或 19.6）：说明 p5 的数值含重力，这个简单版本能用。
-接近 0：说明 p5 给的是去掉重力的数值，自由下落和静止时差不多都是 0，分辨不出来。这时请继续用原来的 devicemotion 版本。*/
-/*
-function accelerationChange(accx, accy, accz) {
-    // playAudio()
-    if (!accx && !accy && !accz) return;//pc
+约 9.8（或 19.6）：说明 p5 的数值含重力，这个版本能用。
+接近 0：说明 p5 给的是去掉重力的数值，自由下落和静止时差不多都是 0，分辨不出来。*/
 
-    const mag = Math.sqrt(accx*accx + accy*accy + accz*accz);
+// p5 在 sketch.js 的 draw() 中每一帧调用这个函数，传入 accelerationX/Y/Z
+function accelerationChange(accx, accy, accz) {
+    if (!accx && !accy && !accz) return; // 电脑上没有传感器，数值全为 0，直接跳过
+
+    const mag = Math.sqrt(accx * accx + accy * accy + accz * accz);
     const now = millis();
 
     if (mag < FREEFALL_THRESHOLD) {
         if (fallStart === null) fallStart = now;
         if (now - fallStart > FREEFALL_MIN_MS && now - lastThunder > COOLDOWN_MS) {
             lastThunder = now;
+            console.log("Free fall detected, magnitude =", mag.toFixed(2));
             playAudio();
         }
     } else {
         fallStart = null;
     }
 }
-*/
 function rotationChange(rotx, roty, rotz) {
 }
 
