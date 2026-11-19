@@ -48,11 +48,55 @@ tuono.createDSP(audioContext, 1024)
 // Edit the next functions to create interactions
 // Decide which parameters you're using and then use playAudio to play the Audio
 //------------------------------------------------------------------------------------------
-//
+
+// 自由下落检测：静止时加速度（含重力）的大小约 9.8 m/s²，自由下落时接近 0。
+// 下落 30 cm 大约需要 sqrt(2 * 0.3 / 9.81) ≈ 0.25 s，所以要求持续 200 ms 以上。
+const FREEFALL_THRESHOLD = 3.0;   // m/s²，低于它就认为在自由下落
+const FREEFALL_MIN_MS = 200;      // 至少持续这么久才算（过滤掉短暂抖动）
+const COOLDOWN_MS = 2000;         // 两次雷声之间至少间隔 2 秒
 //==========================================================================================
+
+// // 直接监听浏览器的 devicemotion 事件，单位明确（m/s²，含重力）
+// window.addEventListener("devicemotion", (e) => {
+//     const a = e.accelerationIncludingGravity;
+//     if (!a || a.x === null) return;
+//     const magnitude = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+//     const now = performance.now();
+
+//     if (magnitude < FREEFALL_THRESHOLD) {
+//         if (fallStart === null) fallStart = now;
+//         if (now - fallStart > FREEFALL_MIN_MS && now - lastThunder > COOLDOWN_MS) {
+//             lastThunder = now;
+//             console.log("Free fall detected, magnitude =", magnitude.toFixed(2));
+//             playAudio();
+//         }
+//     } else {
+//         fallStart = null;
+//     }
+// });
+
+
+/*
+使用前先在手机上验证一件事：手机静止平放时，页面上的 Acceleration Z 是多少。
+约 9.8（或 19.6）：说明 p5 的数值含重力，这个简单版本能用。
+接近 0：说明 p5 给的是去掉重力的数值，自由下落和静止时差不多都是 0，分辨不出来。这时请继续用原来的 devicemotion 版本。*/
 
 function accelerationChange(accx, accy, accz) {
     // playAudio()
+    if (!accx && !accy && !accz) return;//pc
+
+    const mag = Math.sqrt(accx*accx + accy*accy + accz*accz);
+    const now = millis();
+
+    if (mag < FREEFALL_THRESHOLD) {
+        if (fallStart === null) fallStart = now;
+        if (now - fallStart > FREEFALL_MIN_MS && now - lastThunder > COOLDOWN_MS) {
+            lastThunder = now;
+            playAudio();
+        }
+    } else {
+        fallStart = null;
+    }
 }
 
 function rotationChange(rotx, roty, rotz) {
