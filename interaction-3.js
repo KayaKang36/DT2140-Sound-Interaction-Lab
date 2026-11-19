@@ -73,10 +73,17 @@ function rotationChange(rotx, roty, rotz) {
     if (rotx === 0 && roty === 0 && rotz === 0) return;
 
     // 向左或向右倾斜都算，取绝对值
+    // roty 是左右倾斜的角度（−90° 到 90°）。
     const tilt = Math.min(Math.abs(roty), MAX_TILT_DEG);
+
+    /*
+     tilt < 5°      → target = 0
+    5° ~ 60°       → target = (tilt − 5) / 55   线性从 0 升到 1
+     */
+
     const target = tilt < DEAD_ZONE_DEG ? 0 : (tilt - DEAD_ZONE_DEG) / (MAX_TILT_DEG - DEAD_ZONE_DEG);
 
-    rainLevel += (target - rainLevel) * SMOOTHING;
+    rainLevel += (target - rainLevel) * SMOOTHING; //每帧只朝目标走剩余距离的 10%
     playAudio(rainLevel);
 }
 
@@ -136,12 +143,13 @@ function playAudio(level) {
     const [minD, maxD] = densityRange;
 
     if (minD === undefined) {
-        console.warn("找不到参数 " + DENSITY_ADDR + "，请对照 Console 里 params 的地址修改");
+        console.warn("can't find parameter " + DENSITY_ADDR + "，check the   address in the Faust code and the interaction code");
         return;
     }
+
     level = Math.min(Math.max(level, 0), 1);
-    console.log(level)
-    dspNode.setParamValue(DENSITY_ADDR, minD + level * (maxD - minD));
+    // console.log(level)
+    dspNode.setParamValue(DENSITY_ADDR, minD + level * (maxD - minD));// 线性映射到 density 的真实范围
     dspNode.setParamValue(VOLUME_ADDR, level);
 }
 
