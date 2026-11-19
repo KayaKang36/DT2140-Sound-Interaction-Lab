@@ -51,15 +51,6 @@ bells.createDSP(audioContext, 1024)
 
 const STRIKE_COOLDOWN_MS = 250;   // 两次敲钟至少间隔 250 ms，避免一次摇晃连响很多下
 let lastStrike = -Infinity;
-let shakeStrength = 0;            // 当前加速度偏离重力的程度，m/s²
-
-// 记录摇晃有多猛，用来决定钟声的响度
-window.addEventListener("devicemotion", (e) => {
-    const a = e.accelerationIncludingGravity;
-    if (!a || a.x === null) return;
-    const magnitude = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-    shakeStrength = Math.abs(magnitude - 9.81);
-});
 //==========================================================================================
 
 function accelerationChange(accx, accy, accz) {
@@ -85,7 +76,20 @@ function deviceTurned() {
 function deviceShaken() {
     shaketimer = millis();
     statusLabels[0].style("color", "pink");
-    playAudio();
+
+    const now = millis();
+    if (now - lastStrike <STRIKE_COOLDOWN_MS) {
+        return;
+    }
+    lastStrike = now;
+    
+    // 用和 p5 判断摇晃相同的量衡量摇得多猛
+    const strength = Math.abs(accelerationX - pAccelerationX) + Math.abs(accelerationY - pAccelerationY);
+    const threshold = threshVals[0];   // 页面上 shake threshold 滑块的当前值（默认 30）
+    // 刚过阈值 → 0.3，比阈值大 60 以上 → 1
+    const gain = constrain(map(strength, threshold, threshold + 60, 0.3, 1), 0.3, 1);
+    playAudio(gain);
+
 }
 
 function getMinMaxParam(address) {

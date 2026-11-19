@@ -57,13 +57,16 @@ tuono.createDSP(audioContext, 1024)
 const REST_MAX = 4;          // 模长低于它算静止
 const FALL_MIN = 12;         // 自由下落时模长的范围（约 19.6）
 const FALL_MAX = 30;
-const REST_MS = 300;         // 至少静止这么久才就绪
+const REST_MS = 100;       // 至少静止这么久才就绪
 const FALL_MS = 200;         // 至少持续下落这么久才打雷（过滤掉摇晃的瞬间峰值）
 
-let restStart = null;        // 开始静止的时刻
-let fallStart = null;        // 开始下落的时刻
+let restStart = null;        // 从什么时刻开始静止（null = 现在不在静止）
+let fallStart = null;        // 从什么时刻开始下落（null = 现在不在下落）
 let ready = false;           // 是否已就绪
 //==========================================================================================
+/**静止（mag < 4）：开始计时（或继续计时）。静止超过 300ms 后，设 ready = true。
+就绪并且模长在 12 到 30 之间（像在下落）：开始计时下落时间。超过 200ms 就 playAudio()，然后设 ready = false。
+其它情况（摇晃、撞击，或者还没就绪就出现大数值）：两个计时器都清零，什么也不做。*/
 
 function accelerationChange(accx, accy, accz) {
     // 声音没打开时不检测（防止一打开页面就响）
@@ -94,8 +97,12 @@ function accelerationChange(accx, accy, accz) {
         fallStart = null;
     }
 }
+
+
 function rotationChange(rotx, roty, rotz) {
 }
+
+
 
 function mousePressed() {
     // Use this for debugging from the desktop!
@@ -126,6 +133,7 @@ function getMinMaxParam(address) {
     console.log('Min value:', exampleMinValue, 'Max value:', exampleMaxValue);
     return [exampleMinValue, exampleMaxValue]
 }
+
 
 //==========================================================================================
 // AUDIO INTERACTION
